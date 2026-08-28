@@ -429,6 +429,7 @@ void loop () {
     // sendLoRaIgnore("turn off reverse pump");
     delayUsingMillis(10);
   } else {
+    resetTurbidityMedians();
     debugWrite(normTimestamp+": Not enough water, skipping Turbidity measure \n");
     }
 
@@ -997,6 +998,13 @@ void debugWrite(String dbg){
   logFile.println(dbg);
   logFile.close();
   }
+
+void resetTurbidityMedians() {
+  voltageMedian = 0.0f;
+  tempHousingMedian = 0.0f;
+  turbidity = 0.0f;
+  turbidity_air_avg = 0.0f;
+}
 
 void TurbMeasure(String nameOfFile, int howManyReads) {
   // Collect raw turbidity voltage and temperature arrays, compute medians
