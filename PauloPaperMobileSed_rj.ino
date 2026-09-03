@@ -1011,6 +1011,7 @@ void TurbMeasure(String nameOfFile, int howManyReads) {
   for (int i = 0; i < howManyReads; i++) {
     resetWDT();
     tempUpdate();
+    voltageMeasurementArray[0] = 0;
     voltageMeasurementArray[i] = ads.readVoltage(1);
     tempHousingMeasurementArray[i] = sensor.temp.measure[0];
     tempWaterMeasurementArray[i] = sensor.temp.measure[1]; 
