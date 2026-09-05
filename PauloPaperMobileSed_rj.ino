@@ -534,7 +534,7 @@ void loop () {
   if (sensor.turbidity.sensorCount > 0) {
     bool enoughWater = true;
     if (sensor.adc[0].sensorCount > 0) {
-      enoughWater = (sensor.adc[j].measure_2[0] >= cfg.minh2o); //Check logic. Use OTT or ALS for this?
+      enoughWater = (sensor.adc[0].measure_2[0] >= cfg.minh2o); //Check logic. Use OTT or ALS for this?
     }
     if (enoughWater) {
       analogWrite(TURB_PUMP_SPEED, 255); //max 255
@@ -1343,7 +1343,7 @@ void TMP117Setup() {
 }
 
 void BME280Setup() {
-  bme280.settings.commInterface = I2C_MODE;
+//  bme280.settings.commInterface = I2C_MODE; New lib version deprecates this
   bme280.settings.I2CAddress = BME280_ADDR;
   if (bme280.beginI2C()) {           //May crash here if no BME connected
     sensor.BME280.sensorCount = 1;
@@ -1695,7 +1695,7 @@ bool PT100Update(void) {
 
 void bme280Setup() {
   // BME280Setup();
-  bme280.settings.commInterface = I2C_MODE;
+//  bme280.settings.commInterface = I2C_MODE;  New lib version deprecates this
   bme280.settings.I2CAddress = BME280_ADDR;
   if (bme280.beginI2C()) {           //May crash here if no BME connected
     sensor.BME280.sensorCount = 1;
