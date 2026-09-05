@@ -279,7 +279,7 @@ void setup () {
   if (!SD.begin(SD_SPI_CS)) {
     crashNflash(5);  //10*10ms high period
   }
-  disableWDT();
+//  disableWDT();
 
   configRead();
   updateADCEquations();
@@ -297,8 +297,8 @@ void setup () {
   }
 
   //Create debug file if doesn't exist
-  if (!SD.exists("debug.txt")) {
-    file.open("debug.txt", O_RDWR | O_CREAT);
+  if (!SD.exists((char*)"debug.txt")) {
+    file.open(((char*)"debug.txt"), O_RDWR | O_CREAT);
     file.sync();
     file.close();
   }
@@ -704,7 +704,7 @@ void debug(String msg) {
     FsDateTime::setCallback(dateTime);
     msg = normTimestamp + msg + "\n";
     ppmsg = (char*)msg.c_str();
-    file.open("debug.txt", O_RDWR | O_APPEND);
+    file.open(((char*)"debug.txt"), O_RDWR | O_APPEND);
     file.write(ppmsg);
     file.sync();
     file.close();
