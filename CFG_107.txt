@@ -1,0 +1,74 @@
+M.E.L.T. SYSTEM CONFIG FILE
+- Ensure the number after config filename matches system firmware (Eg. FW version 103 for CFG_103.txt)
+- When in doubt, assign Value as DEFAULT
+- Config format is as follows: "ConfigVariable=Value;"
+- Whitespace is ignored. Anything after the semicolon is ignored. Any line that does not contain a ConfigVariable is ignored. 
+THISISOVERWRITINGSTUFF____________________________________________
+Site_ID		        =AA;
+Node_ID		        =107_TST0;
+pollOffset	        =1;		                //Offset poll period (Seconds)
+LoRaBandwidth       =125000;                    // 125000, 250000 or 500000. Higher is faster with decreased range. 
+LoRaFrequency       =919.9;                     //921.2: SEW, 919.9: WERG
+pollPeriod          =60;                        //Poll period seconds.
+LoRaReportFreq      =1;		                    //Send LoRa every X poll cycles 
+LoRa_EN		        =1;		                    //LoRa enabled. Set 0 or 1
+SD_EN		        =1;		                    //SD logging enabled. Set 0 or 1
+Analog_Wake         =1000;                      //Time for 12V sensors to stabilise (ms)
+Timezone            =0;                       // 0 = EST Melbourne/Brisbane
+
+SPECIAL SYSTEM FUNCTIONS__________________________________________
+LoRaRepeater	    =0;		                //Set as 1 to use exclusively as LoRa repeater
+Nodes_to_repeat     ={BBMO,BBBA,ASSS};	    //Max 10 nodes
+
+SENSOR CONFIG_________________________________________________________
+//Onewire and TMP117 sensors are auto-detected
+RTC_Temp_Count	        =1;		                //Report RTC temperature. Set 0 or 1
+BME280_Count	        =0;		                //Set 0 or 1
+USS_Count	            =0;		                //How many Ultrasonic sensors connected
+OTT_Count	            =0;		                //How many OTT probes connected
+PT100_Count             =0;                     //Only handles 1
+Pulse1_Attached	        =0;		                //32 bit counter (Wind speed)
+Pulse1_Multiplier	    =1;		                //
+Pulse2_Attached	        =0;		                //16 bit counter (Rainfall)
+Pulse2_Multiplier	    =1;		                //
+
+ADC CONFIG__________________________________________________________
+ADC0_Attached           =1;                                         //1 if in use. 0 if not in use.
+ADC0_ID                 =AN;                                         //2 character ID key for selected sensor
+ADC0_AveCount           =1;                                         //How many readings to average per measurement
+ADC0_AveDelay           =10;                                        //Time between readings
+ADC0_Cal_Temp           ={0};                                        //Leave empty for no temperature compensation
+ADC0_Cal_mV_min         ={959};                      
+ADC0_Cal_Val_min        ={0};                                  
+ADC0_Cal_mV_max         ={4903};
+ADC0_Cal_Val_max        ={2000};
+
+ADC1_Attached           =0;                                         //1 if in use. 0 if not in use.
+ADC1_ID                 =ST;                                         //2 character ID key for selected sensor
+ADC1_AveCount           =1;                                         //How many readings to average per measurement
+ADC1_AveDelay           =10;                                        //Time between readings
+ADC1_Cal_Temp           ={0};                                       //Leave empty for no temperature compensation
+ADC1_Cal_mV_min         ={0};                      
+ADC1_Cal_Val_min        ={-30};                                  
+ADC1_Cal_mV_max         ={5000};
+ADC1_Cal_Val_max        ={70};
+
+ADC2_Attached           =0;                                         //1 if in use. 0 if not in use.
+ADC2_ID                 =SM;                                         //2 character ID key for selected sensor
+ADC2_AveCount           =1;                                         //How many readings to average per measurement
+ADC2_AveDelay           =10;                                        //Time between readings
+ADC2_Cal_Temp           ={0,6,14,30};                                //Leave empty for no temperature compensation
+ADC2_Cal_mV_min         ={0,400,900,1234};                      
+ADC2_Cal_Val_min        ={0,0,0,0};                                  
+ADC2_Cal_mV_max         ={4500,4544,4540,5540};
+ADC2_Cal_Val_max        ={900,900,900,900};
+
+ADC3_Attached           =0;                                         //1 if in use. 0 if not in use.
+ADC3_ID                 =SR;                                         //2 character ID key for selected sensor
+ADC3_AveCount           =1;                                         //How many readings to average per measurement
+ADC3_AveDelay           =10;                                        //Time between readings
+ADC3_Cal_Temp           ={0};                                //Leave empty for no temperature compensation
+ADC3_Cal_mV_min         ={0};                      
+ADC3_Cal_Val_min        ={0};                                  
+ADC3_Cal_mV_max         ={3000};
+ADC3_Cal_Val_max        ={1796.4};
