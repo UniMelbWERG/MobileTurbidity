@@ -204,12 +204,12 @@ ADS1115 ads(ADC_ADDR);
 SdFs SD;
 typedef FsFile file_t;
 file_t file;
-file_t debugFile;
+// file_t debugFile;  // dead — declared but never used; commented out
 
 uint8_t wdtTime1 = 11;    //Valid values: 0-11. 11 gives 16s timeout. 10 gives 8s timeout and so on
 uint8_t wdtTime2 = 5;    //4=16s, gendiv 5=32s,6=1 min, 7=2min, 8= 4min
 int pollPeriod = 60;
-File logFile;
+// File logFile;   // dead — was the wrong-handle object in setup() header write; commented out
 File configFile;
 String UNIXtimestamp;
 String normTimestamp;
@@ -382,9 +382,15 @@ void setup () {
     logIncrement++;
     fileNameStr = fileNameGen(logIncrement);
     file.open((char*)fileNameStr.c_str(), O_RDWR | O_CREAT | O_APPEND);
+    if (!file) { // FIX: guard against failed open before writing
+      debug("Failed to open log file for header write");
+      systemReset();
+    }
     file.write((char*)CSVHeader.c_str());
-    logFile.sync();
-    logFile.close();
+    // logFile.sync();    // BUG: sync'd the wrong object (`logFile` was never opened). The header's FAT metadata was never flushed.
+    // logFile.close();   // BUG: closed the wrong handle — `file` stayed open/dirty and the header could be lost.
+    file.sync();   // FIX: sync the `file` (FsFile) handle that was actually opened/written
+    file.close();  // FIX: close the `file` handle so the header lands on the card
   }
 
   //RTC
@@ -704,7 +710,11 @@ void debug(String msg) {
     FsDateTime::setCallback(dateTime);
     msg = normTimestamp + msg + "\n";
     ppmsg = (char*)msg.c_str();
-    file.open(((char*)"debug.txt"), O_RDWR | O_APPEND);
+    // file.open(((char*)"debug.txt"), O_RDWR | O_APPEND);  // BUG: no O_CREAT — fails if debug.txt not yet created, then writes to an unopened handle
+    file.open(((char*)"debug.txt"), O_RDWR | O_CREAT | O_APPEND);  // FIX: O_CREAT so debug.txt is created on first debug call
+    if (!file) { // FIX: guard against failed open
+      return;
+    }
     file.write(ppmsg);
     file.sync();
     file.close();
@@ -832,6 +842,10 @@ void logDataToSD() {
   FsDateTime::setCallback(dateTime);
 
   file.open((char*)fileNameStr.c_str(), O_RDWR | O_APPEND);
+  if (!file) { // FIX: guard against failed open (file is created in setup, but be safe)
+    debug("Failed to open log file in logDataToSD, restarting");
+    systemReset();
+  }
   int logFileLast = file.fileSize();
   file.write((char*)normTimestamp.c_str());
   file.write((char*)CSVDataString.c_str());
@@ -846,8 +860,13 @@ void logDataToSD() {
     debug("Logfilesize over max");
     logIncrement++;
     fileNameStr = fileNameGen(logIncrement);
-    // logFile = SD.open((char*)fileNameStr.c_str(), FILE_WRITE);
-    file.open((char*)fileNameStr.c_str(), O_RDWR | O_CREAT );
+    // NOTE: the previous file was already closed above (file.close()), so it is safe to reopen `file` here.
+    // logFile = SD.open((char*)fileNameStr.c_str(), FILE_WRITE);  // old File API — replaced by SdFat FsFile
+    file.open((char*)fileNameStr.c_str(), O_RDWR | O_CREAT | O_TRUNC);  // FIX: O_TRUNC — a brand-new file, no leftover bytes
+    if (!file) { // FIX: guard against failed open of the new rotation file
+      debug("Failed to open rotated log file, restarting");
+      systemReset();
+    }
     file.write((char*)CSVHeader.c_str());
     // logFile.println(CSVHeader);
     // logFile.close();
