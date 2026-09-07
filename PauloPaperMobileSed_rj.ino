@@ -58,7 +58,7 @@
 #define FET_POWER             (4)
 #define ONE_WIRE_POWER        (2)        //One wire temp sensors
 #define ONE_WIRE_BUS          (5)        //One wire temp sensors
-#define SDI12_DATA_PIN              (9)          // The pin of the SDI-12 data bus
+#define SDI12_DATA_PIN        (9)          // The pin of the SDI-12 data bus
 #define SD_SPI_CS             (A4)
 #define USS_ECHO              (A2)
 #define USS_TRIG              (A3)
@@ -100,6 +100,7 @@ uint8_t arrayRead(String valueString, String valueArray[]);
 uint8_t arrayRead(String valueString, float valueArray[]);
 uint8_t arrayRead(String valueString, int valueArray[]);
 void pt100Cal(int adcChannel);
+void sdFileWrite(String fileName, String content);
 
 const char *monthName[12] = {
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -275,11 +276,22 @@ void setup () {
   OneWireTempSetup(); //Must auto detect sensors BEFORE configRead()
   TMP117Setup();  //Auto detect tmp117
 
+  //RTC
+  //Start rtc first so FsDateTime::setCallback function works correctly
+  if (! rtc.begin()) {
+    crashNflash(2);
+  }
+
+  //Set file open date and time
+  FsDateTime::setCallback(dateTime);
+
   //SD card setup
   if (!SD.begin(SD_SPI_CS)) {
     crashNflash(5);  //10*10ms high period
   }
-//  disableWDT();
+
+  // Disable for rtc sleep time sync
+  disableWDT();
 
   configRead();
   updateADCEquations();
@@ -295,14 +307,6 @@ void setup () {
     digitalWrite(TURBIDITY_MOTOR_REVERSE_PIN, LOW);
     analogWrite(TURB_PUMP_SPEED, 0);
   }
-
-  //Create debug file if doesn't exist
-  if (!SD.exists((char*)"debug.txt")) {
-    file.open(((char*)"debug.txt"), O_RDWR | O_CREAT);
-    file.sync();
-    file.close();
-  }
-
   //LoRa setup
   if (rf95.init() == false) {
     while (1) {
@@ -317,6 +321,7 @@ void setup () {
     rf95.setSignalBandwidth(cfg.LoRaBandwidth); //500kHz
   }
   debug("LoRa started");
+  debug("RTC and SD started");
 
   //Special system functions
   if (cfg.LoRaRepeater) {
@@ -378,25 +383,9 @@ void setup () {
   CSVHeader.trim();
 
   if ((currHeader != CSVHeader) ) {
-    CSVHeader += "\n";
     logIncrement++;
     fileNameStr = fileNameGen(logIncrement);
-    file.open((char*)fileNameStr.c_str(), O_RDWR | O_CREAT | O_APPEND);
-    if (!file) { // FIX: guard against failed open before writing
-      debug("Failed to open log file for header write");
-      systemReset();
-    }
-    file.write((char*)CSVHeader.c_str());
-    // logFile.sync();    // BUG: sync'd the wrong object (`logFile` was never opened). The header's FAT metadata was never flushed.
-    // logFile.close();   // BUG: closed the wrong handle — `file` stayed open/dirty and the header could be lost.
-    file.sync();   // FIX: sync the `file` (FsFile) handle that was actually opened/written
-    file.close();  // FIX: close the `file` handle so the header lands on the card
-  }
-
-  //RTC
-  debug("About to start RTC");
-  if (! rtc.begin()) {
-    crashNflash(2);
+    sdFileWrite(fileNameStr, CSVHeader);
   }
   DateTime now = rtc.now();
   unixtime = now.unixtime();
@@ -418,10 +407,10 @@ void setup () {
 
   //Sync RTC on first code upload
   int RTCTime = now.unixtime();
-  //if (uploadUnixtime > RTCTime) {
-  // rtc.adjust(DateTime(Year, monthIndex + 1, Day, Hour, Min, Sec));
-  rtc.adjust(uploadUnixtime);
-  //}
+  if (uploadUnixtime > RTCTime) {
+    rtc.adjust(DateTime(Year, monthIndex + 1, Day, Hour, Min, Sec));
+    rtc.adjust(uploadUnixtime);
+  }
 
   if (cfg.pollOffset > pollPeriod * cfg.pollPerLoRa) { //Protection for badly-set poll offsets
     cfg.pollOffset = 1;
@@ -560,7 +549,7 @@ void loop () {
       analogWrite(TURB_PUMP_SPEED, 0);
     } else {
       resetTurbidityMedians();
-      debug(normTimestamp + "Not enough water, skipping turbidity measure\n");
+      debug(normTimestamp + "Not enough water, skipping turbidity measure");
     }
   }
   turnOff12V();
@@ -707,17 +696,8 @@ void debug(String msg) {
     rf95.waitPacketSent();
   }
   if (cfg.SDEnabled) {
-    FsDateTime::setCallback(dateTime);
-    msg = normTimestamp + msg + "\n";
-    ppmsg = (char*)msg.c_str();
-    // file.open(((char*)"debug.txt"), O_RDWR | O_APPEND);  // BUG: no O_CREAT — fails if debug.txt not yet created, then writes to an unopened handle
-    file.open(((char*)"debug.txt"), O_RDWR | O_CREAT | O_APPEND);  // FIX: O_CREAT so debug.txt is created on first debug call
-    if (!file) { // FIX: guard against failed open
-      return;
-    }
-    file.write(ppmsg);
-    file.sync();
-    file.close();
+    msg = normTimestamp + msg;
+  sdFileWrite("debug.txt", msg);
   }
 }
 
@@ -825,7 +805,7 @@ bool USSUpdate() {
   return true;
 }
 
-void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) {
+void dateTime(uint16_t* date, uint16_t* time) {
   DateTime now = rtc.now();
 
   // Return date using FS_DATE macro to format fields.
@@ -833,47 +813,35 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) {
 
   // Return time using FS_TIME macro to format fields.
   *time = FS_TIME(now.hour(), now.minute(), now.second());
-
-  // Return low time bits in units of 10 ms, 0 <= ms10 <= 199.
-  *ms10 = now.second() & 1 ? 100 : 0;
 }
 
 void logDataToSD() {
-  FsDateTime::setCallback(dateTime);
-
-  file.open((char*)fileNameStr.c_str(), O_RDWR | O_APPEND);
-  if (!file) { // FIX: guard against failed open (file is created in setup, but be safe)
-    debug("Failed to open log file in logDataToSD, restarting");
-    systemReset();
-  }
-  int logFileLast = file.fileSize();
-  file.write((char*)normTimestamp.c_str());
-  file.write((char*)CSVDataString.c_str());
-  logFileSize = file.fileSize();
-  file.sync();
-  file.close();
-  if (logFileSize == 0 || logFileSize <= logFileLast) {
-    debug("Failed to write to log, restarting system");
-    systemReset();
-  }
+  sdFileWrite(fileNameStr, normTimestamp + CSVDataString);
+  //Check if node file too big and
+  //Make a new one
   if (logFileSize > MAX_LOG_SIZE_BYTES) {
     debug("Logfilesize over max");
     logIncrement++;
     fileNameStr = fileNameGen(logIncrement);
-    // NOTE: the previous file was already closed above (file.close()), so it is safe to reopen `file` here.
-    // logFile = SD.open((char*)fileNameStr.c_str(), FILE_WRITE);  // old File API — replaced by SdFat FsFile
-    file.open((char*)fileNameStr.c_str(), O_RDWR | O_CREAT | O_TRUNC);  // FIX: O_TRUNC — a brand-new file, no leftover bytes
-    if (!file) { // FIX: guard against failed open of the new rotation file
-      debug("Failed to open rotated log file, restarting");
-      systemReset();
+    sdFileWrite(fileNameStr, CSVHeader);
+  }
+}
+
+// Create a file on the SD card (if it doesn't already exist) and append
+// `content` as a new line. Every call to sdFileWrite() adds exactly one line
+// to `fileName`. Uses a local FsFile handle so it does NOT clobber the global
+// `file` handle that the main CSV logger relies on.
+void sdFileWrite(String fileName, String content) {
+  FsFile outFile;
+  if (outFile.open((char*)fileName.c_str(), O_RDWR | O_CREAT | O_APPEND)) {
+    outFile.println(content);   // println appends the line ending automatically
+    if (fileName == fileNameStr){
+      logFileSize = outFile.fileSize(); // Get file size of node file
     }
-    file.write((char*)CSVHeader.c_str());
-    // logFile.println(CSVHeader);
-    // logFile.close();
-
-    file.sync();
-    file.close();
-
+    outFile.sync();
+    outFile.close();
+  } else {
+    debug("sdFileWrite: failed to open " + fileName);
   }
 }
 
@@ -1009,7 +977,6 @@ void buildDataStrings() {
     CSVDataString += String(turbidity, 2) + ",";
     CSVDataString += String(turbHousingMedian, 2) + ",";
   }
-  CSVDataString += "\n";
 }
 
 void configRead() {
@@ -1236,7 +1203,6 @@ void configRead() {
       else if (key == "turbPd") {
         cfg.turbPeriod = value.toInt();
       }
-
     }
   }
   configFile.close();
@@ -1776,22 +1742,17 @@ void TurbMeasure(String nameOfFile, int howManyReads) {
 }
 
 void SaveTurbData(String nameOfFile, int howManyReads) { //Append raw turbidity readings to a dedicated CSV
-  FsDateTime::setCallback(dateTime);
   String csvObject = "";
   if (!SD.exists((char*)nameOfFile.c_str())) {
-    csvObject = "Site_name,DateTime,Unixtime[s],Measure_number[-],Turbidity voltage[mV],Housing Temp[c],Water Temp[c]\n";
+    csvObject = "Site_name,DateTime,Unixtime[s],Measure_number[-],Turbidity voltage[mV],Housing Temp[c],Water Temp[c]";
+    sdFileWrite(nameOfFile, csvObject);
+
   }
-  file.open((char*)nameOfFile.c_str(), O_RDWR | O_CREAT | O_APPEND);
-  if (!file) {
-    debug("Failed to open " + nameOfFile + " for turbidity logging");
-    return;
-  }
+
   for (int i = 0; i < howManyReads; i++) {
-    csvObject = cfg.siteID + "_" + cfg.NodeID + "," + normTimestamp + UNIXtimestamp + "," + String(tx_count, DEC) + "," + String(turbVoltageMeasurementArray[i], 4) + "," + String(turbHousingMeasurementArray[i], 2) + "," + String(turbWaterMeasurementArray[i], 2) + "\n";
-    file.write((char*)csvObject.c_str());
+    csvObject = cfg.siteID + "_" + cfg.NodeID + "," + normTimestamp + UNIXtimestamp + "," + String(tx_count, DEC) + "," + String(turbVoltageMeasurementArray[i], 4) + "," + String(turbHousingMeasurementArray[i], 2) + "," + String(turbWaterMeasurementArray[i], 2);
+    sdFileWrite(nameOfFile, csvObject);
   }
-  file.sync();
-  file.close();
 }
 
 void forwardPump() { //Run forward pump for configured seconds, servicing WDT

@@ -10,9 +10,9 @@ pollOffset	        =1;		                //Offset poll period (Seconds)
 LoRaBandwidth       =125000;                    // 125000, 250000 or 500000. Higher is faster with decreased range. 
 LoRaFrequency       =919.9;                     //921.2: SEW, 919.9: WERG
 pollPeriod          =60;                        //Poll period seconds.
-LoRaReportFreq      =1;		                    //Send LoRa every X poll cycles 
-LoRa_EN		        =1;		                    //LoRa enabled. Set 0 or 1
-SD_EN		        =0;		                    //SD logging enabled. Set 0 or 1
+LoRaReportFreq      =1;		                    //Send LoRa every X poll cycles
+LoRa_EN             =1;		                    //LoRa enabled. Set 0 or 1
+SD_EN               =1;		                    //SD logging enabled. Set 0 or 1
 Analog_Wake         =1000;                      //Time for 12V sensors to stabilise (ms)
 Timezone            =0;                       // 0 = EST Melbourne/Brisbane
 
@@ -78,7 +78,7 @@ ADC3_Cal_Val_max        ={1796.4};
 TURBIDITY_MEASUREMENT_CONFIGURATION________________________________________________
 tpumptme	=6;		//Turbidity forward pump in seconds
 tbflshtm	=9;		//Turbidity backwards pump in seconds
-dryread		=10;	//How many Turbidity reads when pump is dry
-wetread		=10;	//How many Turbidity reads when water is flowing
-minh2o		=20;	//Minimum water level to perform Turbidity Read in mm
-turbPd		=100;   //Delay between Turbidity reads in milliseconds
+dryread		=10;		//How many Turbidity reads when pump is dry
+wetread		=10;		//How many Turbidity reads when water is flowing
+minh2o		=20;		//Minimum water level to perform Turbidity Read in mm
+turbPd		=100;	        //Delay between Turbidity reads in milliseconds
