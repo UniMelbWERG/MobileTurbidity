@@ -2,9 +2,20 @@
 
 See the Wiki for documentation: [MobileTurbidity Wiki](https://github.com/Robwerg/MobileTurbidity/wiki)
 
+## Changes from V107
+
+- New reusable sdcard function for writing sd files.
+- Turb reading and pump. Clashes with PT100 sensor so can't use that with this code.
+- Start RTC earlier because if debug() is called beforeRTC init then it failes because of FsDateTime::setCallback(dateTime)
+- Now only call FsDateTime::setCallback(dateTime) once because you only need to call it once.
+
+
 ## TODO
 
 - Calibrate ALS 0 sensor. Need minimum 2 sets of temp/min/max values to work correctly.
+- Maybe rename the ino file?
+- backport sd function and changes to V107 maybe?
+- FsDateTime::setCallback(dateTime) is 2 hours behind. Maybe a timezone issue?
 
 ## Board
 
