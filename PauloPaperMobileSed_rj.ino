@@ -174,6 +174,7 @@ typedef struct {
   value_t adc[4];
   value_t PT100;
   value_t turbidity;
+  value_t leak;   //Leak sensor gate (ADS1115 ch2); value held in global adc2, mirroring turbidity
 } sensor_t;
 sensor_t sensor;
 
@@ -247,6 +248,7 @@ float turbVoltageMedian;
 float turbHousingMedian;
 float turbidity;          //wet median (mV)
 float turbidity_air_avg;  //dry median (mV)
+float adc2;               //Leak sensor raw reading (mV) - occupies ADS1115 channel 2
 
 char SDbuf[125];
 
@@ -525,6 +527,10 @@ void loop () {
   if (sensor.USS.sensorCount > 0) {
     if (!USSUpdate()) {
     }
+  }
+  // Leak sensor: ADS1115 channel 2 is occupied by the leak sensor.
+  if (sensor.leak.sensorCount > 0) {
+    adc2 = ads.readADC(2) * ads.toVoltage(2) * 1000;  //channel 2, mV (same idiom as ADCUpdate/TurbMeasure)
   }
   if (sensor.turbidity.sensorCount > 0) {
     bool enoughWater = true;
@@ -977,6 +983,10 @@ void buildDataStrings() {
     CSVDataString += String(turbidity, 2) + ",";
     CSVDataString += String(turbHousingMedian, 2) + ",";
   }
+  if (sensor.leak.sensorCount > 0) {
+    // Leak sensor (ADS1115 channel 2)
+    CSVDataString += String(adc2, 2) + ",";
+  }
 }
 
 void configRead() {
@@ -1203,6 +1213,10 @@ void configRead() {
       else if (key == "turbPd") {
         cfg.turbPeriod = value.toInt();
       }
+      //Leak sensor config__________________
+      else if (key == "Leak_Count") {
+        sensor.leak.sensorCount = value.toInt();   //Set 1 to enable the leak sensor (ADS1115 channel 2)
+      }
     }
   }
   configFile.close();
@@ -1395,6 +1409,10 @@ void generateCSVHeader() {
   }
   if (sensor.turbidity.sensorCount > 0) {
     CSVHeader += "TURB_DRY,TURB_WET,HOUSING_TEMP,";
+  }
+  if (sensor.leak.sensorCount > 0) {
+    // Leak sensor (ADS1115 channel 2), logged as the final column
+    CSVHeader += "LEAK_SENSOR,";
   }
   // CSVHeader += "\n";    //Doesnt seem to be wokring
 }

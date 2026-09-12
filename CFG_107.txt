@@ -32,6 +32,7 @@ Pulse1_Multiplier	    =1;		                //
 Pulse2_Attached	        =0;		                //16 bit counter (Rainfall)
 Pulse2_Multiplier	    =1;		                //
 Turbidity_Count         =1;
+Leak_Count              =1;                                        //Set 1 to enable the leak sensor (ADS1115 channel 2)
 
 ADC CONFIG__________________________________________________________
 ADC0_Attached           =1;                                         //1 if in use. 0 if not in use.
@@ -54,7 +55,10 @@ ADC1_Cal_Val_min        ={0};
 ADC1_Cal_mV_max         ={5000};
 ADC1_Cal_Val_max        ={70};
 
-ADC2_Attached           =0;                                         //1 if in use. 0 if not in use.
+// ADC2 (ADS1115 channel 2) is OCCUPIED BY THE LEAK SENSOR. Do not reuse this channel for another analog sensor.
+// The leak sensor is read unconditionally in firmware and logged to the CSV LEAK_SENSOR column (raw mV).
+// The ADC2_* config keys below are NOT used for it - keep ADC2_Attached=0.
+ADC2_Attached           =0;                                         //1 if in use. 0 if not in use. //CHANNEL 2 = leak sensor, do not attach another sensor here
 ADC2_ID                 =SM;                                         //2 character ID key for selected sensor
 ADC2_AveCount           =1;                                         //How many readings to average per measurement
 ADC2_AveDelay           =10;                                        //Time between readings

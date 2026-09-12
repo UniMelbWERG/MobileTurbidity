@@ -8,6 +8,8 @@ See the Wiki for documentation: [MobileTurbidity Wiki](https://github.com/Robwer
 - Turb reading and pump. Clashes with PT100 sensor so can't use that with this code.
 - Start RTC earlier because if debug() is called beforeRTC init then it failes because of FsDateTime::setCallback(dateTime)
 - Now only call FsDateTime::setCallback(dateTime) once because you only need to call it once.
+- Leak sensor reading on ADS1115 channel 2, logged to the CSV LEAK_SENSOR column (raw mV).
+- Leak sensor is gated by the Leak_Count config key (set 1 to enable); header column and data append both follow it. Channel 2 is now reserved for the leak sensor.
 
 
 ## TODO
