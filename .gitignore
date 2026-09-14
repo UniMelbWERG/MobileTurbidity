@@ -1,3 +1,4 @@
 # 1. Ignore absolutely everything
 build/
 .vscode/
+*.bin
