@@ -12,6 +12,7 @@ See the Wiki for documentation: [MobileTurbidity Wiki](https://github.com/Robwer
 
 ## TODO
 
+- This is to merge to main. No custom leak sensor.
 - Calibrate ALS 0 sensor. Need minimum 2 sets of temp/min/max values to work correctly.
 - Maybe rename the ino file?
 - backport sd function and changes to V107 maybe?
