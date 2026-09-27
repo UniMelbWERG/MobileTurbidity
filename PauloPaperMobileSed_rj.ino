@@ -33,7 +33,7 @@
 // #include <FlashAsEEPROM.h> Not using this right now
 
 #define TEST_LOOP             (false)     //Run test loop instead of actual loop
-#define SLEEP_ENABLED         (false)    //Disable to keep serial coms alive for testing
+#define SLEEP_ENABLED         (true)    //Disable to keep serial coms alive for testing
 #define FIRMWARE_VERSION      (107)
 #define BV_OFFSET             (0.01)
 #define OTT_OFFSET            (0.15)
@@ -593,6 +593,7 @@ String fileNameGen(int increment) {
 }
 
 void sleep() {
+    turnOff12V(); 
   sleep_now_time = internalrtc.getEpoch();
   if (sleep_remaining_s > 0) {
     if (SLEEP_ENABLED) {
