@@ -54,6 +54,9 @@
 #define DEFAULT_READ_COUNT 10       //turbidity samples per reading for median
 #define DEFAULT_MIN_H2O 20          //min water level (mm) to allow a wet turbidity read
 #define DEFAULT_TURB_READ_PERIOD 100 //period (ms) between turbidity samples
+#define DEFAULT_TURB_COMP_A 0       //temperature compensation slope (mV/degC), referenced to 20 degC
+#define DEFAULT_TURB_CAL_B 1        //turbidity calibration slope
+#define DEFAULT_TURB_CAL_C 0        //turbidity calibration offset
 //Hardware pins
 #define FET_POWER             (4)
 #define ONE_WIRE_POWER        (2)        //One wire temp sensors
@@ -148,6 +151,9 @@ typedef struct {
   int turbWetReads = DEFAULT_READ_COUNT;
   int minh2o = DEFAULT_MIN_H2O;
   int turbPeriod = DEFAULT_TURB_READ_PERIOD;
+  float turbCompA = DEFAULT_TURB_COMP_A;
+  float turbCalB = DEFAULT_TURB_CAL_B;
+  float turbCalC = DEFAULT_TURB_CAL_C;
   //Analog sensor config__________________
   ADC_t adc[4];
 } cfg_t;
@@ -247,6 +253,7 @@ float turbVoltageMedian;
 float turbHousingMedian;
 float turbidity;          //wet median (mV)
 float turbidity_air_avg;  //dry median (mV)
+float turbidityCal;       //temperature compensated and calibrated wet median
 
 char SDbuf[125];
 
@@ -540,6 +547,7 @@ void loop () {
       forwardPump();
       TurbMeasure(TURB_WET_READ, cfg.turbWetReads);
       turbidity = turbVoltageMedian; //raw voltage, not NTU
+      turbidityCal = cfg.turbCalB * (turbidity - cfg.turbCompA * (turbHousingMedian - 20)) + cfg.turbCalC;
       digitalWrite(TURBIDITY_MOTOR_FORWARD, LOW);
       delayUsingMillis(500);
       digitalWrite(TURBIDITY_MOTOR_REVERSE_PIN, HIGH); //reverse backflush
@@ -974,9 +982,12 @@ void buildDataStrings() {
   if (sensor.turbidity.sensorCount > 0) {
     LoRaDataString += "TURB_DRY=" + String(turbidity_air_avg, 2) + ",";
     LoRaDataString += "TURB_WET=" + String(turbidity, 2) + ",";
+    LoRaDataString += "HOUSING_TEMP=" + String(turbHousingMedian, 2) + ",";
+    LoRaDataString += "TURB_CAL=" + String(turbidityCal, 2) + ",";
     CSVDataString += String(turbidity_air_avg, 2) + ",";
     CSVDataString += String(turbidity, 2) + ",";
     CSVDataString += String(turbHousingMedian, 2) + ",";
+    CSVDataString += String(turbidityCal, 2) + ",";
   }
 }
 
@@ -1204,6 +1215,15 @@ void configRead() {
       else if (key == "turbPd") {
         cfg.turbPeriod = value.toInt();
       }
+      else if (key == "turbCompA") {
+        cfg.turbCompA = value.toFloat();
+      }
+      else if (key == "turbCalB") {
+        cfg.turbCalB = value.toFloat();
+      }
+      else if (key == "turbCalC") {
+        cfg.turbCalC = value.toFloat();
+      }
     }
   }
   configFile.close();
@@ -1395,7 +1415,7 @@ void generateCSVHeader() {
     }
   }
   if (sensor.turbidity.sensorCount > 0) {
-    CSVHeader += "TURB_DRY,TURB_WET,HOUSING_TEMP,";
+    CSVHeader += "TURB_DRY,TURB_WET,HOUSING_TEMP,TURB_CAL,";
   }
   // CSVHeader += "\n";    //Doesnt seem to be wokring
 }
@@ -1719,11 +1739,12 @@ uint32_t makeTime(int Second, int Minute, int Hour, int Day, int Month, int Year
 }
 
 //Turbidity routines (merged from MobileTurbidity/PauloPaperMobileSed_rj.ino)
-void resetTurbidityMedians() {
-  turbVoltageMedian = 0.0f;
-  turbHousingMedian = 0.0f;
-  turbidity = 0.0f;
-  turbidity_air_avg = 0.0f;
+void resetTurbidityMedians() { //-9999 flags a skipped read in the outputs
+  turbVoltageMedian = -9999;
+  turbHousingMedian = -9999;
+  turbidity = -9999;
+  turbidity_air_avg = -9999;
+  turbidityCal = -9999;
 }
 
 void TurbMeasure(String nameOfFile, int howManyReads) {
