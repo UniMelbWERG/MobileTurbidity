@@ -57,6 +57,8 @@
 #define DEFAULT_TURB_COMP_A 0       //temperature compensation slope (mV/degC), referenced to 20 degC
 #define DEFAULT_TURB_CAL_B 1        //turbidity calibration slope
 #define DEFAULT_TURB_CAL_C 0        //turbidity calibration offset
+#define DEFAULT_TURB_HOUSING_PROBE 0 //OneWire probe index (TOn) used for housing temp
+#define DEFAULT_TURB_WATER_PROBE 1   //OneWire probe index (TOn) used for water temp
 //Hardware pins
 #define FET_POWER             (4)
 #define ONE_WIRE_POWER        (2)        //One wire temp sensors
@@ -154,6 +156,8 @@ typedef struct {
   float turbCompA = DEFAULT_TURB_COMP_A;
   float turbCalB = DEFAULT_TURB_CAL_B;
   float turbCalC = DEFAULT_TURB_CAL_C;
+  int turbHousingProbe = DEFAULT_TURB_HOUSING_PROBE;
+  int turbWaterProbe = DEFAULT_TURB_WATER_PROBE;
   //Analog sensor config__________________
   ADC_t adc[4];
 } cfg_t;
@@ -548,6 +552,7 @@ void loop () {
       TurbMeasure(TURB_WET_READ, cfg.turbWetReads);
       turbidity = turbVoltageMedian; //raw voltage, not NTU
       turbidityCal = cfg.turbCalB * (turbidity - cfg.turbCompA * (turbHousingMedian - 20)) + cfg.turbCalC;
+      if (turbHousingMedian == -9999) turbidityCal = -9999; //No housing temp, can't compensate
       digitalWrite(TURBIDITY_MOTOR_FORWARD, LOW);
       delayUsingMillis(500);
       digitalWrite(TURBIDITY_MOTOR_REVERSE_PIN, HIGH); //reverse backflush
@@ -1224,6 +1229,12 @@ void configRead() {
       else if (key == "turbCalC") {
         cfg.turbCalC = value.toFloat();
       }
+      else if (key == "turbHsgTO") {
+        cfg.turbHousingProbe = value.toInt();
+      }
+      else if (key == "turbH2OTO") {
+        cfg.turbWaterProbe = value.toInt();
+      }
     }
   }
   configFile.close();
@@ -1752,10 +1763,19 @@ void TurbMeasure(String nameOfFile, int howManyReads) {
   if (howManyReads > 10) howManyReads = 10; //array size guard
   for (int i = 0; i < howManyReads; i++) {
     resetWDT();
-    if (sensor.TMP117.sensorCount > 0) sensor.TMP117.measure[0] = tempSensor.readTempC();
-    if (sensor.BME280.sensorCount > 0) sensor.BME280.measure[0] = bme280.readTempC();
-    turbHousingMeasurementArray[i] = sensor.TMP117.measure[0];
-    turbWaterMeasurementArray[i] = sensor.BME280.measure[0];
+    if (sensor.temp.sensorCount > 0) tempSensors.requestTemperatures(); //One conversion for housing and water probes. Leaves sensor.temp.measure as the initial poll reading
+    if (cfg.turbHousingProbe >= 0 && cfg.turbHousingProbe < sensor.temp.sensorCount) { //Housing temp is OneWire probe TO<turbHsgTO>
+      turbHousingMeasurementArray[i] = tempSensors.getTempC(sensor.temp.addr[cfg.turbHousingProbe]);
+    }
+    else {
+      turbHousingMeasurementArray[i] = -9999; //Housing probe not detected
+    }
+    if (cfg.turbWaterProbe >= 0 && cfg.turbWaterProbe < sensor.temp.sensorCount) { //Water temp is OneWire probe TO<turbH2OTO>
+      turbWaterMeasurementArray[i] = tempSensors.getTempC(sensor.temp.addr[cfg.turbWaterProbe]);
+    }
+    else {
+      turbWaterMeasurementArray[i] = -9999; //Water probe not detected
+    }
     turbVoltageMeasurementArray[i] = ads.readADC(1) * ads.toVoltage(1) * 1000; //ADS1115 channel 1, mV (same mV conversion as ADCUpdate)
     delayUsingMillis(cfg.turbPeriod);
   }
