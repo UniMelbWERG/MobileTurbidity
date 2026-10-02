@@ -1635,8 +1635,9 @@ void linearPiecewiseADCCal(int adcChannel) { //This function uses linear interpo
   }
   else {
     for (int j = 0; j < cfg.adc[adcChannel].calPoints; j++) {
-      if (sensor.adc[adcChannel].measure[0] < cfg.adc[adcChannel].mvMax[j]) {
-        sensor.adc[adcChannel].measure_2[0] = sensor.adc[adcChannel].measure[0] * cfg.adc[adcChannel].slope[j] + cfg.adc[adcChannel].offset[j];
+      if (sensor.adc[adcChannel].measure[0] <= cfg.adc[adcChannel].mvMax[j]) {
+        Slope = cfg.adc[adcChannel].slope[j];
+        Offset = cfg.adc[adcChannel].offset[j];
         // linearInterpRatio = (sensor.adc[adcChannel].measure[0] - cfg.adc[adcChannel].mvMin[j]) / (cfg.adc[adcChannel].mvMax[j] - cfg.adc[adcChannel].mvMin[j]);  //this is old and wrong. I had it confused with the logic from temp cal. might have been skewing results slightly
         // Slope = linearInterpRatio * (cfg.adc[adcChannel].slope[j] - cfg.adc[adcChannel].slope[j-1]) + cfg.adc[adcChannel].slope[j-1];
         // Offset = linearInterpRatio * (cfg.adc[adcChannel].offset[j] - cfg.adc[adcChannel].offset[j-1]) + cfg.adc[adcChannel].offset[j-1];
@@ -1644,7 +1645,7 @@ void linearPiecewiseADCCal(int adcChannel) { //This function uses linear interpo
       }
     }
   }
-
+  sensor.adc[adcChannel].measure_2[0] = sensor.adc[adcChannel].measure[0] * Slope + Offset;
 }
 
 
@@ -1663,7 +1664,7 @@ void temperatureADCCal(int adcChannel) { //This function uses linear interpolati
   }
   else {
     for (int j = 1; j < cfg.adc[adcChannel].tempPoints; j++) {
-      if (sensor.temp.measure[tempCalCount] < cfg.adc[adcChannel].calTemp[j]) {
+      if (sensor.temp.measure[tempCalCount] <= cfg.adc[adcChannel].calTemp[j]) {
         linearInterpRatio = (sensor.temp.measure[tempCalCount] - cfg.adc[adcChannel].calTemp[j - 1]) / (cfg.adc[adcChannel].calTemp[j] - cfg.adc[adcChannel].calTemp[j - 1]);
         Slope = linearInterpRatio * (cfg.adc[adcChannel].slope[j] - cfg.adc[adcChannel].slope[j - 1]) + cfg.adc[adcChannel].slope[j - 1];
         Offset = linearInterpRatio * (cfg.adc[adcChannel].offset[j] - cfg.adc[adcChannel].offset[j - 1]) + cfg.adc[adcChannel].offset[j - 1];
