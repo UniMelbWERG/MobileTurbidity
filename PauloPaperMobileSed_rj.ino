@@ -59,6 +59,8 @@
 #define DEFAULT_TURB_CAL_C 0        //turbidity calibration offset
 #define DEFAULT_TURB_HOUSING_PROBE 0 //OneWire probe index (TOn) used for housing temp
 #define DEFAULT_TURB_WATER_PROBE 1   //OneWire probe index (TOn) used for water temp
+#define DEFAULT_TURB_LEAK_ADC -1     //ADC channel of leak sensor, -1 = no leak check
+#define DEFAULT_TURB_LEAK_MV 3500    //leak sensor raw mV above which the pump is not run
 //Hardware pins
 #define FET_POWER             (4)
 #define ONE_WIRE_POWER        (2)        //One wire temp sensors
@@ -158,6 +160,8 @@ typedef struct {
   float turbCalC = DEFAULT_TURB_CAL_C;
   int turbHousingProbe = DEFAULT_TURB_HOUSING_PROBE;
   int turbWaterProbe = DEFAULT_TURB_WATER_PROBE;
+  int turbLeakADC = DEFAULT_TURB_LEAK_ADC;
+  float turbLeakmV = DEFAULT_TURB_LEAK_MV;
   //Analog sensor config__________________
   ADC_t adc[4];
 } cfg_t;
@@ -542,7 +546,11 @@ void loop () {
     if (sensor.adc[0].sensorCount > 0) {
       enoughWater = (sensor.adc[0].measure_2[0] >= cfg.minh2o); //Check logic. Use OTT or ALS for this?
     }
-    if (enoughWater) {
+    bool leak = false;
+    if (cfg.turbLeakADC >= 0 && cfg.turbLeakADC < 4 && sensor.adc[cfg.turbLeakADC].sensorCount > 0) {
+      leak = (sensor.adc[cfg.turbLeakADC].measure[0] > cfg.turbLeakmV); //Raw mV from this poll's ADCUpdate. Not latched
+    }
+    if (enoughWater && !leak) {
       analogWrite(TURB_PUMP_SPEED, 255); //max 255
       TurbMeasure(TURB_DRY_READ, cfg.turbDryReads);
       turbidity_air_avg = turbVoltageMedian; //raw voltage, not NTU
@@ -562,7 +570,8 @@ void loop () {
       analogWrite(TURB_PUMP_SPEED, 0);
     } else {
       resetTurbidityMedians();
-      debug(normTimestamp + "Not enough water, skipping turbidity measure");
+      if (leak) debug(normTimestamp + "Leak sensor above threshold, skipping turbidity measure");
+      if (!enoughWater) debug(normTimestamp + "Not enough water, skipping turbidity measure");
     }
   }
   turnOff12V();
@@ -1234,6 +1243,12 @@ void configRead() {
       }
       else if (key == "turbH2OTO") {
         cfg.turbWaterProbe = value.toInt();
+      }
+      else if (key == "turbLeakADC") {
+        cfg.turbLeakADC = value.toInt();
+      }
+      else if (key == "turbLeakmV") {
+        cfg.turbLeakmV = value.toFloat();
       }
     }
   }

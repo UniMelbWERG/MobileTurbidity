@@ -87,3 +87,5 @@ turbCalB	=1;		//Turbidity calibration slope. turbCal = B*turbComp + C
 turbCalC	=0;		//Turbidity calibration offset
 turbHsgTO	=0;		//OneWire probe index used for housing temp (0 = TO0, 1 = TO1, ...)
 turbH2OTO	=1;		//OneWire probe index used for water temp (0 = TO0, 1 = TO1, ...)
+turbLeakADC	=2;		//ADC channel of leak sensor (-1 = no leak check)
+turbLeakmV	=3500;		//Pump is not run, and turbidity = -9999, if leak sensor raw mV is above this
